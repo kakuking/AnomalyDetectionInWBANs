@@ -1,2 +1,2 @@
-wget -r -N -c -np -A "*.txt" https://physionet.org/files/mimicdb/1.0.0/039/03900{001..465}.txt
+wget -r -N -c -np -A "*.txt" https://physionet.org/files/mimicdb/1.0.0/039/03900{201..465}.txt
 

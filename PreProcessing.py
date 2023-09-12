@@ -1,80 +1,103 @@
 import matplotlib.pyplot as plt
 import numpy as np
+from tqdm import tqdm
 
+# Self-Explanatory
 def convert_to_float(value):
     try:
         return float(value)
     except ValueError:
         return None
 
-base = "physionet.org/files/mimicdb/1.0.0/039/"
-lower = 1
-upper = 200
+# Save the numpy arrays
+def saveArrays():
+    np.save("spo2_data.npy",        np.array(spo2_data))
+    np.save("pulse_data.npy",       np.array(pulse_data))
+    np.save("hr_data.npy",          np.array(hr_data))
+    np.save("resp_data.npy",        np.array(resp_data))
+    np.save("abp_sys_data.npy",     np.array(abp_sys_data))
+    np.save("abp_dia_data.npy",     np.array(abp_dia_data))
+    np.save("abp_mean_data.npy",    np.array(abp_mean_data))
+
+# base folder
+base =  "physionet.org/files/mimicdb/1.0.0/039/"
 
 data = {
-    'SpO2': [],
-    'PULSE': [],
-    'HR': [],
-    'RESP': [],
-    'ABP': [],
+    'SpO2':     [],
+    'PULSE':    [],
+    'HR':       [],
+    'RESP':     [],
+    'ABP':      [],
 }
 
-for i in range(1, 201):
+# loop through all files and parse the values
+for i in tqdm(range(1, 466)):
     filename = f'039{str(i).zfill(5)}.txt' 
-    print(filename)
 
+    # Open the file and see
     with open(base + filename, 'r') as file:
+
+        # Skip the first line (data)
         next(file)
+
         for line in file:
+
+            # Parse the line
             parts = line.strip().split('\t')
+
+            # if more than 2 parts (line is not invalid)
             if len(parts) >= 2:
+
+                # split it into parts
                 category, *values = parts
+
+                # remove trailing zeros
                 category = category.rstrip(" ")
+
+                # Convert values to number
                 values = [convert_to_float(value) for value in values]
+
+                # add it to arrays
                 if category not in data:
                     data[category] = []
                 data[category].append(values)
 
-# Now you can access the data in separate lists like this:
-spo2_data = np.array(data['SpO2'])
-pulse_data = np.array(data['PULSE'])
-hr_data =  np.array(data['HR'])
-resp_data = np.array(data['RESP'])
-abp_data = np.array(data['ABP'])
-abp_sys_data = np.array([])
-abp_dia_data = np.array([])
-abp_mean_data = np.array([])
+# Separate it into arrays
+spo2_data =     data['SpO2']
+pulse_data =    data['PULSE']
+hr_data =       data['HR']
+resp_data =     data['RESP']
+abp_data =      data['ABP']
+abp_sys_data =  []
+abp_dia_data =  []
+abp_mean_data = []
 
+# Split abp into the three components
 for row in abp_data:
     if(len(row) < 3):
         continue
-    abp_mean_data = np.append(abp_mean_data, row[0])
-    abp_sys_data = np.append(abp_sys_data, row[0])
-    abp_dia_data = np.append(abp_dia_data, row[0])
+    abp_mean_data.append(row[0])
+    abp_sys_data.append(row[1])
+    abp_dia_data.append(row[2])
 
-np.save("spo2_data.npy", spo2_data)
-np.save("pulse_data.npy", pulse_data)
-np.save("hr_data.npy", hr_data)
-np.save("resp_data.npy", resp_data)
-np.save("abp_sys_data.npy", abp_sys_data)
-np.save("abp_dia_data.npy", abp_dia_data)
-np.save("abp_mean_data.npy", abp_mean_data)
+# Save the numpy arrays
+saveArrays()
 
-
-
-
-plt.plot(spo2_data, label = "SPO2")
-plt.plot(pulse_data, label = "PULSE")
-plt.plot(hr_data, label = "HR")
-plt.plot(resp_data, label = "RESP")
+# PyPlot stuff
+plt.plot(data["SpO2"],  label = "SPO2")
+plt.plot(data["PULSE"], label = "PULSE")
+plt.plot(data["HR"],    label = "HR")
+plt.plot(data["RESP"],  label = "RESP")
 plt.plot(abp_mean_data, label = "ABPmean")
-plt.plot(abp_dia_data, label = "ABPdia")
-plt.plot(abp_sys_data, label = "ABPsys")
+plt.plot(abp_dia_data,  label = "ABPdia")
+plt.plot(abp_sys_data,  label = "ABPsys")
 
 plt.grid()
 plt.ylim(-50, 400)
 plt.legend(loc="upper right")
 plt.title('ABP')
 
+plt.ioff()
 plt.tight_layout()
+
 plt.show()
