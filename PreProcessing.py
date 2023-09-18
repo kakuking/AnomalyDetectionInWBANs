@@ -4,20 +4,17 @@ from tqdm import tqdm
 
 # Self-Explanatory
 def convert_to_float(value):
-    try:
-        return float(value)
-    except ValueError:
-        return None
+    return float(value)
 
 # Save the numpy arrays
 def saveArrays():
-    np.save("spo2_data.npy",        np.array(spo2_data))
-    np.save("pulse_data.npy",       np.array(pulse_data))
-    np.save("hr_data.npy",          np.array(hr_data))
-    np.save("resp_data.npy",        np.array(resp_data))
-    np.save("abp_sys_data.npy",     np.array(abp_sys_data))
-    np.save("abp_dia_data.npy",     np.array(abp_dia_data))
-    np.save("abp_mean_data.npy",    np.array(abp_mean_data))
+    np.save("numpy_saved_data/spo2_data.npy",        np.array(spo2_data).ravel())
+    np.save("numpy_saved_data/pulse_data.npy",       np.array(pulse_data).ravel())
+    np.save("numpy_saved_data/hr_data.npy",          np.array(hr_data).ravel())
+    np.save("numpy_saved_data/resp_data.npy",        np.array(resp_data).ravel())
+    np.save("numpy_saved_data/abp_sys_data.npy",     np.array(abp_sys_data).ravel())
+    np.save("numpy_saved_data/abp_dia_data.npy",     np.array(abp_dia_data).ravel())
+    np.save("numpy_saved_data/abp_mean_data.npy",    np.array(abp_mean_data).ravel())
 
 # base folder
 base =  "physionet.org/files/mimicdb/1.0.0/039/"
@@ -57,6 +54,13 @@ for i in tqdm(range(1, 466)):
                 # Convert values to number
                 values = [convert_to_float(value) for value in values]
 
+                if category == "ABP" and len(values) < 3:
+                    data["SpO2"].pop()
+                    data["PULSE"].pop()
+                    data["HR"].pop()
+                    data["RESP"].pop()
+                    continue
+                
                 # add it to arrays
                 if category not in data:
                     data[category] = []
@@ -72,9 +76,12 @@ abp_sys_data =  []
 abp_dia_data =  []
 abp_mean_data = []
 
+unneeded = 0
+
 # Split abp into the three components
 for row in abp_data:
     if(len(row) < 3):
+        unneeded += 1
         continue
     abp_mean_data.append(row[0])
     abp_sys_data.append(row[1])

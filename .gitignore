@@ -1,2 +1,6 @@
 physionet.org/
+numpy_saved_data/
+models/
 *.npy
+*.png
+*.h5
