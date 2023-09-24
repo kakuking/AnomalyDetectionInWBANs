@@ -55,7 +55,7 @@ def load_data():
     subarrays = np.array(subarrays)
     subarrays = np.expand_dims(subarrays, axis=-1)
 
-    np.save(base_path + "039_combined_subarrays.npy", subarrays)
+    # np.save(base_path + "039_combined_subarrays.npy",   subarrays)
     print(f"Combined/Normalized Data, shape of subarray: {subarrays.shape}")
 
 # Splits previous data into train-test-validate set
@@ -104,7 +104,7 @@ def create_model() -> [Model, EarlyStopping, ReduceLROnPlateau]:
     print("created model")
     return autoencoder, early_stopping, reduce_lr
 
-# Trains model 
+# Trains model m
 def train_model(autoencoder, early_stopping, reduce_lr, model_path):
     autoencoder.fit(X_train, X_train,
                     epochs=NUM_EPOCHS,
@@ -125,7 +125,7 @@ def train_model(autoencoder, early_stopping, reduce_lr, model_path):
     return autoencoder
 
 # loads a previously saved model
-def load_saved_model(model_path):
+def load_saved_model(model_path) -> Model:
     autoencoder = load_model(model_path)
     return autoencoder
 
@@ -170,6 +170,33 @@ def predict_validate_metric_graph(X_val, INDEX_TO_CHECK, how_many_anomalies):
 
     plt.show()
 
+def predict_concatenate_save(Input, INDEX_TO_CHECK):
+    Y_val = autoencoder.predict(Input)
+
+    Y_val = np.squeeze(Y_val, axis=-1)
+    Input = np.squeeze(Input, axis=-1)
+
+    temp = Y_val.shape[0] * Y_val.shape[1]
+
+    Y_val = Y_val.reshape((temp, 7))
+    Input = Input.reshape((temp, 7))
+
+    abs_diff = np.abs(Y_val[:, INDEX_TO_CHECK] - Input[:, INDEX_TO_CHECK])
+
+    val_MSE = mean_squared_error(Input[:, INDEX_TO_CHECK], Y_val[:, INDEX_TO_CHECK])
+    val_MAE = mean_absolute_error(Input[:, INDEX_TO_CHECK], Y_val[:, INDEX_TO_CHECK])
+    error_SD = np.std(Y_val[:, INDEX_TO_CHECK] - Input[:, INDEX_TO_CHECK])
+
+    ANOMALIES = np.where(abs_diff > error_SD)[0]
+
+    labels = np.zeros(Y_val.shape[0], dtype=int)
+    labels[ANOMALIES] = 1
+
+    base_path = "../numpy_saved_data/"
+
+    np.save(base_path + "039_LSTM_labels.npy",  labels)
+    np.save(base_path + "039_LSTM_dataset.npy", Input)
+
 model_path = "../models/autoencoderV2.h5"
 BATCH_SIZE = 128
 TEST_SIZE = 0.2
@@ -182,10 +209,11 @@ INITIAL_ENCODING_DIM = 64
 load_data()
 X_train, X_test, X_val = split_data()
 autoencoder, early_stopping, reduce_lr = create_model()
-autoencoder = train_model(autoencoder, early_stopping, reduce_lr, model_path)
-# autoencoder = load_saved_model(model_path)
+# autoencoder = train_model(autoencoder, early_stopping, reduce_lr, model_path)
+autoencoder = load_saved_model(model_path)
 
-predict_validate_metric_graph(subarrays, 2, -1)    # -1 means show all anomalies
+# predict_validate_metric_graph(subarrays, 2, -1)    # -1 means show all anomalies
+predict_concatenate_save(subarrays, 0)
 
 # spo2_data ========== 0
 # pulse_data ========= 1
