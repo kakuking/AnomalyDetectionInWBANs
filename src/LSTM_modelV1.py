@@ -26,7 +26,7 @@ def createModel():
 # Load the database and correlate it
 def load_and_correlate_dataset(INDEX_TO_CHECK)-> [np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     correlation_matrix: np.ndarray = np.load(base_path + "039_correlation.npy")
-    combined_data:      np.ndarray = np.load(base_path + "039_LSTM_dataset.npy")
+    encoded_data:       np.ndarray = np.load(base_path + "039_encoded_dataset.npy")
     labels:             np.ndarray = np.load(base_path + "039_LSTM_labels.npy")
     labels = labels.reshape(-1, 1)
 
@@ -34,10 +34,10 @@ def load_and_correlate_dataset(INDEX_TO_CHECK)-> [np.ndarray, np.ndarray, np.nda
                              axis=1,
                              keepdims=True)
 
-    print(f"Correlation shape:      {correlation_matrix.shape}")
-    print(f"Dataset shape:          {combined_data.shape}")
-    print(f"Labels shape:           {labels.shape}")
-    print(f"Correlated data shape:  {correlated_data.shape}")
+    print(f"Correlation matrix shape:       {correlation_matrix.shape}")
+    print(f"Dataset shape:                  {combined_data.shape}")
+    print(f"Labels shape:                   {labels.shape}")
+    print(f"Correlated data shape:          {correlated_data.shape}")
 
     return correlation_matrix, combined_data, correlated_data, labels
 
@@ -47,9 +47,9 @@ def find_anomaly_scores(correlated_data):
     correlated_std = np.std(correlated_data)
     anomaly_scores = (correlated_data - correlated_mean)/correlated_std
 
-    print(f"Correlated data mean:   {correlated_mean}")
-    print(f"Correlated data std:    {correlated_std}")
-    print(f"Anomaly scores shape:   {anomaly_scores.shape}")
+    print(f"Correlated data mean:           {correlated_mean}")
+    print(f"Correlated data std:            {correlated_std}")
+    print(f"Anomaly scores shape:           {anomaly_scores.shape}")
 
     return anomaly_scores
 
@@ -60,11 +60,11 @@ def find_contextual_anomalies(anomaly_scores, labels):
 
     anomalous_indices = np.where(anomaly_scores > anomaly_std)[0]
 
-    print(f"Anomalous indices:      {anomalous_indices.shape}")
+    print(f"Anomalous indices before filter:                {anomalous_indices.shape}")
 
     anomalous_indices = np.intersect1d(anomalous_indices, indices_with_label)
 
-    print(f"Anomalous indices filtered by point anomaly: {anomalous_indices.shape}")
+    print(f"Anomalous indices filtered by point anomaly:    {anomalous_indices.shape}")
 
     return anomalous_indices
 

@@ -170,7 +170,7 @@ def predict_validate_metric_graph(X_val, INDEX_TO_CHECK, how_many_anomalies):
 
     plt.show()
 
-def predict_concatenate_save(Input, INDEX_TO_CHECK):
+def predict_and_save(Input, INDEX_TO_CHECK):
     Y_val = autoencoder.predict(Input)
 
     Y_val = np.squeeze(Y_val, axis=-1)
@@ -192,11 +192,23 @@ def predict_concatenate_save(Input, INDEX_TO_CHECK):
     labels = np.zeros(Y_val.shape[0], dtype=int)
     labels[ANOMALIES] = 1
 
-    base_path = "../numpy_saved_data/"
-
     np.save(base_path + "039_LSTM_labels.npy",  labels)
-    np.save(base_path + "039_LSTM_dataset.npy", Input)
 
+def create_encoder(autoencoder) -> Model:
+    encoder_layers = autoencoder.layers[:5]
+    encoder = Model(inputs=autoencoder.input, outputs=encoder_layers[-1].output)
+
+    encoder.save("../models/encoderV1.h5")
+
+    return encoder
+
+def encode_and_save(Input, encoder):
+    encoded_data = encoder.predict(Input)
+
+    np.save(base_path + "039_encoded_dataset.npy", encoded_data)
+
+
+base_path = "../numpy_saved_data/"
 model_path = "../models/autoencoderV2.h5"
 BATCH_SIZE = 128
 TEST_SIZE = 0.2
@@ -209,11 +221,15 @@ INITIAL_ENCODING_DIM = 64
 load_data()
 X_train, X_test, X_val = split_data()
 autoencoder, early_stopping, reduce_lr = create_model()
+
 # autoencoder = train_model(autoencoder, early_stopping, reduce_lr, model_path)
 autoencoder = load_saved_model(model_path)
 
 # predict_validate_metric_graph(subarrays, 2, -1)    # -1 means show all anomalies
-predict_concatenate_save(subarrays, 0)
+predict_and_save(subarrays, 0)
+
+encoder = create_encoder(autoencoder)
+encode_and_save(subarrays, encoder)
 
 # spo2_data ========== 0
 # pulse_data ========= 1
