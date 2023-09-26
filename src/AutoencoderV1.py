@@ -13,6 +13,11 @@ from scipy.stats import norm
 import matplotlib.pyplot as plt
 
 
+'''
+Autoencoder V2 took a 7x7 input and created a 2x2x64 encoded output
+Attempting now: AutoencoderV3, which will attempt to create the encoding for a 7x1 input : wont that make it contextual? Will attempt after consulting prof
+'''
+
 # loads data, combines it, normalizes it, creates 7x7 subarrays of it,
 # makes the subarrays global, hence no return
 def load_data():
@@ -70,7 +75,7 @@ def split_data() -> [[], [], []]:
     print("split data into train, test, and validate sets")
 
     return X_train, X_test, X_val
- 
+
 # Creates model
 def create_model() -> [Model, EarlyStopping, ReduceLROnPlateau]:
     #Model def
@@ -158,8 +163,12 @@ def predict_validate_metric_graph(X_val, INDEX_TO_CHECK, how_many_anomalies):
     print(f"Mean Absolute Error (MAE) on Validation Set: {val_MAE:.4f}")
     print(f"Standard Deviation of Error on Validation Set: {error_SD:.4f}")
 
-    plt.plot(X_val[:ANOMALIES[how_many_anomalies], INDEX_TO_CHECK], label="x")
-    plt.plot(Y_val[:ANOMALIES[how_many_anomalies], INDEX_TO_CHECK], label="y")
+    ending_index = ANOMALIES[how_many_anomalies]
+    if how_many_anomalies == -1:
+        ending_index = -1
+
+    plt.plot(X_val[: ending_index, INDEX_TO_CHECK], label="x")
+    plt.plot(Y_val[: ending_index, INDEX_TO_CHECK], label="y")
     plt.plot(ANOMALIES[:how_many_anomalies], X_val[ANOMALIES[:how_many_anomalies], INDEX_TO_CHECK], 'ro', label='Difference > Threshold')
 
     plt.grid()
@@ -170,7 +179,7 @@ def predict_validate_metric_graph(X_val, INDEX_TO_CHECK, how_many_anomalies):
 
     plt.show()
 
-def predict_and_save(Input, INDEX_TO_CHECK):
+def predict_and_save(Input, INDEX_TO_CHECK) -> np.ndarray:
     Y_val = autoencoder.predict(Input)
 
     Y_val = np.squeeze(Y_val, axis=-1)
@@ -193,12 +202,15 @@ def predict_and_save(Input, INDEX_TO_CHECK):
     labels[ANOMALIES] = 1
 
     np.save(base_path + "039_LSTM_labels.npy",  labels)
+    np.save(base_path + "039_combined_dataset.npy", Input)
+
+    return labels
 
 def create_encoder(autoencoder) -> Model:
     encoder_layers = autoencoder.layers[:5]
     encoder = Model(inputs=autoencoder.input, outputs=encoder_layers[-1].output)
 
-    encoder.save("../models/encoderV1.h5")
+    encoder.save("../models/encoderV2.h5")
 
     return encoder
 
@@ -206,7 +218,6 @@ def encode_and_save(Input, encoder):
     encoded_data = encoder.predict(Input)
 
     np.save(base_path + "039_encoded_dataset.npy", encoded_data)
-
 
 base_path = "../numpy_saved_data/"
 model_path = "../models/autoencoderV2.h5"
@@ -225,8 +236,12 @@ autoencoder, early_stopping, reduce_lr = create_model()
 # autoencoder = train_model(autoencoder, early_stopping, reduce_lr, model_path)
 autoencoder = load_saved_model(model_path)
 
-# predict_validate_metric_graph(subarrays, 2, -1)    # -1 means show all anomalies
-predict_and_save(subarrays, 0)
+
+
+# predict_validate_metric_graph(subarrays, 0, -1)    # -1 means show all anomalies
+
+
+labels = predict_and_save(subarrays, 0)
 
 encoder = create_encoder(autoencoder)
 encode_and_save(subarrays, encoder)

@@ -3,34 +3,16 @@ from keras.layers import LSTM, Embedding, Dense
 from keras.models import Sequential
 import numpy as np
 
-'''
-def createModel():
-    # Define the model architecture
-    model = Sequential()
-    model.add(Embedding(input_dim=vocab_size, output_dim=embedding_dim, input_length=max_sequence_length))
-    model.add(LSTM(64))
-    model.add(Dense(num_classes, activation='softmax'))
-
-    # Compile the model
-    model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-
-    # Train the model
-    model.fit(X_train, y_train, epochs=10, batch_size=32, validation_data=(X_val, y_val))
-
-    # Evaluate on the test set
-    test_loss, test_accuracy = model.evaluate(X_test, y_test)
-    print(f'Test Loss: {test_loss:.4f}')
-    print(f'Test Accuracy: {test_accuracy:.4f}')
-'''
-
 # Load the database and correlate it
-def load_and_correlate_dataset(INDEX_TO_CHECK)-> [np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def load_and_correlate_dataset(INDEX_TO_CHECK)-> [np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     correlation_matrix: np.ndarray = np.load(base_path + "039_correlation.npy")
     encoded_data:       np.ndarray = np.load(base_path + "039_encoded_dataset.npy")
+    combined_data:      np.ndarray = np.load(base_path + "039_combined_dataset.npy")
     labels:             np.ndarray = np.load(base_path + "039_LSTM_labels.npy")
+
     labels = labels.reshape(-1, 1)
 
-    correlated_data = np.sum(combined_data * correlation_matrix[INDEX_TO_CHECK].T,
+    correlated_data: np.ndarray = np.sum(combined_data * correlation_matrix[INDEX_TO_CHECK].T,
                              axis=1,
                              keepdims=True)
 
@@ -38,23 +20,24 @@ def load_and_correlate_dataset(INDEX_TO_CHECK)-> [np.ndarray, np.ndarray, np.nda
     print(f"Dataset shape:                  {combined_data.shape}")
     print(f"Labels shape:                   {labels.shape}")
     print(f"Correlated data shape:          {correlated_data.shape}")
+    print(f"Encoded dataset shape:          {encoded_data.shape}")
 
-    return correlation_matrix, combined_data, correlated_data, labels
+    return correlation_matrix, combined_data, correlated_data, labels, encoded_data
 
 # Find the anomaly scores
-def find_anomaly_scores(correlated_data):
+def find_anomaly_scores(correlated_data) -> np.ndarray:
     correlated_mean = np.mean(correlated_data)
     correlated_std = np.std(correlated_data)
     anomaly_scores = (correlated_data - correlated_mean)/correlated_std
 
-    print(f"Correlated data mean:           {correlated_mean}")
-    print(f"Correlated data std:            {correlated_std}")
-    print(f"Anomaly scores shape:           {anomaly_scores.shape}")
+    # print(f"Correlated data mean:           {correlated_mean}")
+    # print(f"Correlated data std:            {correlated_std}")
+    # print(f"Anomaly scores shape:           {anomaly_scores.shape}")
 
     return anomaly_scores
 
 # Find anomalous_indices
-def find_contextual_anomalies(anomaly_scores, labels):
+def find_contextual_anomalies(anomaly_scores, labels) -> np.ndarray:
     anomaly_std = np.std(anomaly_scores)
     indices_with_label = np.where(labels == 1)[0]
 
@@ -68,11 +51,26 @@ def find_contextual_anomalies(anomaly_scores, labels):
 
     return anomalous_indices
 
-def create_anomalous_labels():
+# Takes indices of anomalies and converts into labels
+def create_anomalous_labels() -> np.ndarray:
     LSTM_labels = np.zeros(combined_data.shape[0])
     LSTM_labels[anomalous_indices] = 1
     
     return LSTM_labels
+
+# Takes anomalous labels that are for each row (7x1) and converts to each encoding
+# Each 2x2x64 encoding is the encoding of a 7x7 piece of data, hence we check 
+# if there is any anomaly in the 7x7 range and if there is, it is labelled true
+def contract_anomalous_labels(labels) -> np.ndarray:
+    num = len(labels) // 7
+    temp = labels.reshape((num, 7))
+    contracted_labels = np.sum(temp, axis=1) >= 1
+
+    contracted_labels = contracted_labels.astype(int)
+
+    print(f"Anomalous indices after contraction from 7x7 to 7x1: {len(contracted_labels)}")
+
+    return contracted_labels
 
 base_path = "../numpy_saved_data/"
 INDEX_TO_CHECK = 0
@@ -87,7 +85,10 @@ abp_dia_data ======= 5
 abp_mean_data ====== 6
 '''
 
-correlation_matrix, combined_data, correlated_data, labels = load_and_correlate_dataset(INDEX_TO_CHECK)
+correlation_matrix, combined_data, correlated_data, point_labels, encoded_data = load_and_correlate_dataset(INDEX_TO_CHECK)
 anomaly_scores = find_anomaly_scores(correlated_data)
-anomalous_indices = find_contextual_anomalies(anomaly_scores, labels)
-LSTM_labels = create_anomalous_labels()
+anomalous_indices = find_contextual_anomalies(anomaly_scores, point_labels)
+anomalous_labels = create_anomalous_labels()
+contracted_anomalous_labels = contract_anomalous_labels(anomalous_labels)
+
+# Choose a sequene length of 7
