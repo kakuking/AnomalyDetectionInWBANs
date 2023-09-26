@@ -66,8 +66,8 @@ def load_data():
 # Splits previous data into train-test-validate set
 def split_data() -> [[], [], []]:
     # 0.7 train 0.2 test 0.1 valx
-    X_train, X_temp = train_test_split(subarrays, test_size=1-(TEST_SIZE + VAL_SIZE), random_state=42)
-    X_test, X_val = train_test_split(X_temp, test_size=VAL_SIZE/TEST_SIZE) 
+    X_train, X_temp = train_test_split(subarrays, test_size=(TEST_SIZE + VAL_SIZE), random_state=42)
+    X_test, X_val = train_test_split(X_temp, test_size=VAL_SIZE/(TEST_SIZE + VAL_SIZE)) 
     X_train = X_train
     X_val = X_val
     X_test = X_test
@@ -99,11 +99,7 @@ def create_model() -> [Model, EarlyStopping, ReduceLROnPlateau]:
 
     autoencoder.compile(optimizer='adam', loss='mean_absolute_error')  # binary_crossentropy mean_absolute_error
 
-    # Apply regularization and other strategies
-    # 1. Early Stopping
     early_stopping = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
-
-    # 2. Reduce Learning Rate on Plateau
     reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=5, min_lr=int(1e-6))
 
     print("created model")
@@ -236,11 +232,7 @@ autoencoder, early_stopping, reduce_lr = create_model()
 # autoencoder = train_model(autoencoder, early_stopping, reduce_lr, model_path)
 autoencoder = load_saved_model(model_path)
 
-
-
 # predict_validate_metric_graph(subarrays, 0, -1)    # -1 means show all anomalies
-
-
 labels = predict_and_save(subarrays, 0)
 
 encoder = create_encoder(autoencoder)

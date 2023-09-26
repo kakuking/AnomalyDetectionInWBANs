@@ -1,6 +1,8 @@
 import tensorflow as tf
-from keras.layers import LSTM, Embedding, Dense
-from keras.models import Sequential
+from keras.layers import LSTM, Dense
+from keras.models import Sequential, load_model
+
+from sklearn.model_selection import train_test_split
 import numpy as np
 
 # Load the database and correlate it
@@ -68,11 +70,91 @@ def contract_anomalous_labels(labels) -> np.ndarray:
 
     contracted_labels = contracted_labels.astype(int)
 
-    print(f"Anomalous indices after contraction from 7x7 to 7x1: {len(contracted_labels)}")
+    print(f"Anomalous indices after contraction from 7x7 to 7x1: {contracted_labels.shape}")
 
     return contracted_labels
 
+# Creates sequences for encoded data to feed to LSTM
+# Also creates labels for it
+def reshape_encoded_dataset(encoded_dataset, contracted_anomalous_labels, sequence_length) -> [np.ndarray, np.ndarray]:
+    num_samples, sample_dim2, sample_dim3, sample_dim4 = encoded_dataset.shape
+    num_seq = num_samples - sequence_length + 1
+    
+    sequences = np.zeros((num_seq, sequence_length, sample_dim2, sample_dim3, sample_dim4))
+    sequence_labels = np.zeros(num_seq)
+
+    for i in range(num_seq):
+        sequences[i] = encoded_dataset[i:i+sequence_length]
+        sequence_labels[i] = contracted_anomalous_labels[i+sequence_length-1]
+
+    print(f"Created sequences from encoded data: {sequences.shape}")
+    print(f"Labels for sequences: {sequence_labels.shape}")
+
+    return sequences, sequence_labels
+
+# Splits data into train test validate
+def split_into_train_test_val(encoded_dataset, dataset_labels, test_ratio, val_ratio):
+    X_train, X_temp, Y_train, Y_temp = train_test_split(encoded_dataset, dataset_labels, test_size = test_ratio + val_ratio)
+    X_val, X_test, Y_val, Y_test = train_test_split(X_temp, Y_temp, test_size=test_ratio/(val_ratio + test_ratio))
+
+    print(f"Split sequences of encoded data into train {X_train.shape}, test {X_test.shape}, val {X_val.shape}")
+
+    return X_train, X_test, X_val, Y_train, Y_test, Y_val
+
+def reshape_dataset(dataset, sequence_length):
+    dataset = dataset.reshape(dataset.shape[0], sequence_length, -1)
+
+    return dataset
+
+def reshape_train_test_val(X_train, X_test, X_val, sequence_length):
+    X_train = reshape_dataset(X_train, sequence_length)   
+    X_test = reshape_dataset(X_test, sequence_length)   
+    X_val = reshape_dataset(X_val, sequence_length)
+
+    return X_train, X_test, X_val
+
+# Creates LSTM model
+def create_LSTM_model(input_shape) -> Sequential:
+    model = Sequential([
+        LSTM(64, input_shape=input_shape),
+        Dense(32, activation='relu'),
+        Dense(1, activation='sigmoid')
+    ])
+
+    model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+
+    print("Created model")
+
+    return model
+
+# Trains prev created model
+def train_model(model, dataset, labels, val_dataset, val_labels, num_epochs, batch_size):
+    model.fit(dataset, labels,
+                    epochs=num_epochs,
+                    batch_size=batch_size,
+                    shuffle=True, 
+                    validation_data=(val_dataset, val_labels),
+                    )
+
+    print("Model trained")
+
+    model.summary()
+
+    model.save(model_path)
+
+    print("Model saved")
+
+    return model
+
+# Do binary predictions
+def binary_predict(model, input):
+    predictions = model.predict(input)
+    binary_predictions = (predictions > 0.5).astype(int)
+
+    return binary_predictions
+
 base_path = "../numpy_saved_data/"
+model_path = "../models/LSTM_modelV1.h5"
 INDEX_TO_CHECK = 0
 
 '''
@@ -92,3 +174,27 @@ anomalous_labels = create_anomalous_labels()
 contracted_anomalous_labels = contract_anomalous_labels(anomalous_labels)
 
 # Choose a sequene length of 7
+SEQUENCE_LENGTH = 7
+encoded_sequences, sequence_labels = reshape_encoded_dataset(encoded_data, contracted_anomalous_labels, SEQUENCE_LENGTH)
+
+X_train, X_test, X_val, Y_train, Y_test, Y_val = split_into_train_test_val(encoded_sequences, sequence_labels, 0.1, 0.2)
+X_train, X_test, X_val = reshape_train_test_val(X_train, X_test, X_val, SEQUENCE_LENGTH)
+
+num_epochs = 10
+batch_size = 128
+
+LSTM_model = create_LSTM_model(X_train.shape[1:])
+
+# LSTM_model = train_model(LSTM_model, X_train, Y_train, X_val, Y_val, num_epochs, batch_size)
+LSTM_model = load_model(model_path)
+
+
+reshaped_encoded_sequences = reshape_dataset(encoded_sequences, SEQUENCE_LENGTH)
+Y_predicted = binary_predict(LSTM_model, reshaped_encoded_sequences)
+
+print(f"predicted labels sum:   {np.sum(Y_predicted)}")
+print(f"sequence labels sum:    {np.sum(sequence_labels)}")
+
+test_loss, test_accuracy = LSTM_model.evaluate(reshaped_encoded_sequences, sequence_labels)
+print("Test Loss:", test_loss)
+print("Test Accuracy:", test_accuracy)
