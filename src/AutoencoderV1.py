@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 from keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D, Cropping2D
-from keras.models import Sequential, Model, load_model
+from keras.models import Model, load_model
 from keras.callbacks import EarlyStopping, ReduceLROnPlateau
 
 from sklearn.model_selection import train_test_split
@@ -36,7 +36,7 @@ def load_data():
 
     # Use boolean indexing to remove rows containing 0
     combined_data = combined_data[~contains_zero]
-    print(combined_data.shape)
+    print(f"Removed all rows containing 0: {combined_data.shape}")
 
     scaler = MinMaxScaler()
     combined_data = scaler.fit_transform(combined_data)
@@ -121,11 +121,6 @@ def train_model(autoencoder, early_stopping, reduce_lr, model_path):
 
     print("Model Saved")    # To load: tf.keras.models.load_model(model_path)
 
-    return autoencoder
-
-# loads a previously saved model
-def load_saved_model(model_path) -> Model:
-    autoencoder = load_model(model_path)
     return autoencoder
 
 # predicts the given value, calculates MSE, MAE, SD 
@@ -228,13 +223,13 @@ X_train, X_test, X_val = split_data()
 autoencoder, early_stopping, reduce_lr = create_model()
 
 # autoencoder = train_model(autoencoder, early_stopping, reduce_lr, model_path)
-autoencoder = load_saved_model(model_path)
+autoencoder = load_model(model_path)
 
-# predict_validate_metric_graph(subarrays, 0, -1)    # -1 means show all anomalies
-labels = predict_and_save(subarrays, 0)
+predict_validate_metric_graph(subarrays, 0, -1)    # -1 means show all anomalies
+# labels = predict_and_save(subarrays, 0)
 
-encoder = create_encoder(autoencoder)
-encode_and_save(subarrays, encoder)
+# encoder = create_encoder(autoencoder)
+# encode_and_save(subarrays, encoder)
 
 # spo2_data ========== 0
 # pulse_data ========= 1
