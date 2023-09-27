@@ -234,5 +234,6 @@ LSTM_model = create_LSTM_model(X_train.shape[1:])
 LSTM_model = load_model(model_path)
 
 reshaped_encoded_sequences = reshape_dataset(encoded_sequences, SEQUENCE_LENGTH)
+
 # predict_and_graph(LSTM_model, reshaped_encoded_sequences, INDEX_TO_CHECK, point_labels, combined_data, anomalous_indices)
 predict_and_metrics(LSTM_model, reshaped_encoded_sequences, sequence_labels)
