@@ -1,4 +1,4 @@
-from keras.layers import LSTM, Dense
+from keras.layers import LSTM, Dense, Dropout
 from keras.models import Sequential, load_model
 
 from sklearn.model_selection import train_test_split
@@ -30,7 +30,7 @@ def load_and_correlate_dataset(INDEX_TO_CHECK)-> [np.ndarray, np.ndarray, np.nda
 def find_anomaly_scores(correlated_data) -> np.ndarray:
     correlated_mean = np.mean(correlated_data)
     correlated_std = np.std(correlated_data)
-    anomaly_scores = (correlated_data - correlated_mean)/correlated_std
+    anomaly_scores = np.abs(correlated_data - correlated_mean)/correlated_std
 
     # print(f"Correlated data mean:           {correlated_mean}")
     # print(f"Correlated data std:            {correlated_std}")
@@ -117,9 +117,27 @@ def reshape_train_test_val(X_train, X_test, X_val, sequence_length):
 
 # Creates LSTM model
 def create_LSTM_model(input_shape) -> Sequential:
-    model = Sequential([
+
+    '''
+        V1:
         LSTM(64, input_shape=input_shape),
         Dense(32, activation='relu'),
+        Dense(1, activation='sigmoid')
+
+        V2: 
+        LSTM(64, input_shape=input_shape, return_sequences=True),
+        LSTM(64, return_sequences=True),
+        LSTM(64),
+        Dropout(0.5),
+        Dense(1, activation='sigmoid')
+    '''
+
+
+    model = Sequential([
+        LSTM(64, input_shape=input_shape, return_sequences=True),
+        LSTM(64, return_sequences=True),
+        LSTM(64),
+        Dropout(0.5),
         Dense(1, activation='sigmoid')
     ])
 
@@ -153,41 +171,39 @@ def binary_predict(model, input):
     predictions = model.predict(input)
     binary_predictions = (predictions > 0.5).astype(int)
 
-    return binary_predictions
+    return binary_predictions, predictions
 
 def predict_and_metrics(model, input, actual_labels):
-    Y_predicted = binary_predict(model, input)
+    Y_predicted, _ = binary_predict(model, input)
 
     print(f"predicted labels sum:   {np.sum(Y_predicted)}")
     print(f"predicted labels shape: {Y_predicted.shape}")
 
-    test_loss, test_accuracy = LSTM_model.evaluate(reshaped_encoded_sequences, actual_labels)
+    test_loss, test_accuracy = LSTM_model.evaluate(reshaped_encoded_sequences, actual_labels, verbose=0)
     print("Test Loss:", test_loss)
     print("Test Accuracy:", test_accuracy)
 
 # Create graphs for contextual anomalies
-def predict_and_graph(model, input, INDEX_TO_CHECK, point_labels, combined_data, AS_contextual_anomalies):
+def predict_and_graph(model, input, INDEX_TO_CHECK, point_labels, combined_data, AS_contextual_anomalies, AS_contracted):
     point_anomaly_indices = np.where(point_labels == 1)[0]
 
-    predicted_contextual = binary_predict(model, input)
+    predicted_contextual, _ = binary_predict(model, input)
 
     predicted_contextual_indices = 7 * np.where(predicted_contextual == 1)[0]
-    predicted_end_indices = predicted_contextual_indices + 7
+    calculated_contracted_indices = 7 * np.where(AS_contracted == 1)[0]
 
     # predicted_contextual_indices = np.column_stack((predicted_contextual_indices, predicted_end_indices))
 
-    print(f"Contextual anomaly indices shape: {predicted_contextual_indices.shape}")
-    print(f"Point anomaly indices shape:      {point_anomaly_indices.shape}")
+    print(f"Calculated contextual anomaly indices shape:                {AS_contextual_anomalies.shape}")
+    print(f"Calculated contracted contextual anomaly indices shape:     {calculated_contracted_indices.shape}")
+    print(f"Predicted Contextual anomaly indices shape:                 {predicted_contextual_indices.shape}")
+    print(f"Point anomaly indices shape:                                {point_anomaly_indices.shape}")
 
-    print(predicted_contextual_indices)
-    print(predicted_end_indices)
 
-
-    plt.plot(combined_data[:, INDEX_TO_CHECK], label="X")
-    # plt.plot(point_anomaly_indices, combined_data[point_anomaly_indices, INDEX_TO_CHECK], 'ro', label="Point anomlies")
+    plt.plot(combined_data[:, INDEX_TO_CHECK], label="Value of sensor")
     plt.plot(predicted_contextual_indices, combined_data[predicted_contextual_indices, INDEX_TO_CHECK], 'go', label = "Predicted Contextual anomalies")
-    plt.plot(AS_contextual_anomalies, combined_data[AS_contextual_anomalies, INDEX_TO_CHECK], 'ro', label = "AS Contextual anomalies", markersize=2)
-    # plt.plot(predicted_end_indices, combined_data[predicted_end_indices, INDEX_TO_CHECK], 'r+', label = "Contextual anomalies ends")
+    plt.plot(calculated_contracted_indices, combined_data[calculated_contracted_indices, INDEX_TO_CHECK], 'bo', label = "Calculated Contextual anomalies", markersize=2)
+    # plt.plot(AS_contextual_anomalies, combined_data[AS_contextual_anomalies, INDEX_TO_CHECK], 'ro', label = "AS Contextual anomalies", markersize=2)
 
     plt.grid()
     plt.legend(loc="upper right")
@@ -197,9 +213,31 @@ def predict_and_graph(model, input, INDEX_TO_CHECK, point_labels, combined_data,
 
     plt.show()
 
+def predict_and_graph_AS(model, input, Anomaly_scores, AS_contracted):
+    predictions, raw_values = binary_predict(model, input)
+    raw_values = np.repeat(raw_values, 7, axis=0)
+
+    predicted_contextual_indices = 7 * np.where(predictions == 1)[0]
+    calculated_contracted_indices = 7 * np.where(AS_contracted == 1)[0]
+    
+    print(f"Predicted Number of anomalies =     {predicted_contextual_indices.shape}")
+    print(f"Calculated Number of anomalies =    {calculated_contracted_indices.shape}")
+    
+    plt.plot(Anomaly_scores, label="Anomaly Scores as Calculated")
+    # plt.plot(raw_values, label="Raw predicted values of anomaly scores")
+    plt.plot(predicted_contextual_indices, Anomaly_scores[predicted_contextual_indices], 'ro', label="Predicted Contextual Anomalies")
+    plt.plot(calculated_contracted_indices, Anomaly_scores[calculated_contracted_indices], 'bo', label="AS calculated Contextual Anomalies", markersize=2)
+    plt.grid()
+    plt.legend(loc="upper right")
+    plt.show()
+    
+
+'''
+#################################################################################################################################################
+'''
 
 base_path = "../numpy_saved_data/"
-model_path = "../models/LSTM_modelV1.h5"
+model_path = "../models/LSTM_modelV2.h5"
 INDEX_TO_CHECK = 0
 
 '''
@@ -225,7 +263,7 @@ encoded_sequences, sequence_labels = reshape_encoded_dataset(encoded_data, contr
 X_train, X_test, X_val, Y_train, Y_test, Y_val = split_into_train_test_val(encoded_sequences, sequence_labels, 0.1, 0.2)
 X_train, X_test, X_val = reshape_train_test_val(X_train, X_test, X_val, SEQUENCE_LENGTH)
 
-num_epochs = 10
+num_epochs = 50
 batch_size = 128
 
 LSTM_model = create_LSTM_model(X_train.shape[1:])
@@ -235,5 +273,6 @@ LSTM_model = load_model(model_path)
 
 reshaped_encoded_sequences = reshape_dataset(encoded_sequences, SEQUENCE_LENGTH)
 
-# predict_and_graph(LSTM_model, reshaped_encoded_sequences, INDEX_TO_CHECK, point_labels, combined_data, anomalous_indices)
+# predict_and_graph(LSTM_model, reshaped_encoded_sequences, INDEX_TO_CHECK, point_labels, combined_data, anomalous_indices, contracted_anomalous_labels)
 predict_and_metrics(LSTM_model, reshaped_encoded_sequences, sequence_labels)
+# predict_and_graph_AS(LSTM_model, reshaped_encoded_sequences, anomaly_scores, contracted_anomalous_labels)
