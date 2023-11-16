@@ -9,6 +9,7 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 
 import matplotlib.pyplot as plt
+import csv
 
 
 '''
@@ -100,7 +101,7 @@ def create_model() -> [Model, EarlyStopping, ReduceLROnPlateau]:
     early_stopping = EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
     reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, patience=5, min_lr=int(1e-6))
 
-    print("created model")
+    # print("created model")
     return autoencoder, early_stopping, reduce_lr
 
 # Trains model m
@@ -155,12 +156,13 @@ def predict_validate_metric_graph(X_val, INDEX_TO_CHECK, how_many_anomalies):
     ending_index = ANOMALIES[how_many_anomalies]
     if how_many_anomalies == -1:
         ending_index = -1
-
-    plt.plot(X_val[: ending_index, INDEX_TO_CHECK], label="x")
-    plt.plot(Y_val[: ending_index, INDEX_TO_CHECK], label="y")
+    
+    plt.plot(X_val[: ending_index, INDEX_TO_CHECK], label="Actual Values")
+    plt.plot(Y_val[: ending_index, INDEX_TO_CHECK], label="Predicted Values")
     plt.plot(ANOMALIES[:how_many_anomalies], X_val[ANOMALIES[:how_many_anomalies], INDEX_TO_CHECK], 'ro', label='Difference > Threshold')
 
     plt.grid()
+    plt.title('For ' + INDEX_VS_METRIC[INDEX_TO_CHECK])
     plt.legend(loc="upper right")
 
     plt.ioff()
@@ -208,12 +210,47 @@ def encode_and_save(Input, encoder):
 
     np.save(base_path + "039_encoded_dataset.npy", encoded_data)
 
+def epochsVsAnomalies(autoencoder, early_stopping, reduce_lr, number_epochs, X_val, INDEX_TO_CHECK):
+    autoencoder.fit(X_train, X_train,
+                    epochs=number_epochs,
+                    batch_size=BATCH_SIZE,
+                    shuffle=True, 
+                    validation_data=(X_test, X_test),
+                    callbacks=[early_stopping, reduce_lr],
+                    verbose=0
+                    )
+
+    Y_val = autoencoder.predict(X_val, verbose=0)
+
+    Y_val = np.squeeze(Y_val, axis=-1)
+    X_val = np.squeeze(X_val, axis=-1)
+
+    temp = Y_val.shape[0] * Y_val.shape[1]
+
+    Y_val = Y_val.reshape((temp, 7))
+    X_val = X_val.reshape((temp, 7))
+
+    abs_diff = np.abs(Y_val[:, INDEX_TO_CHECK] - X_val[:, INDEX_TO_CHECK])
+
+    val_MSE = mean_squared_error(X_val[:, INDEX_TO_CHECK], Y_val[:, INDEX_TO_CHECK])
+    val_MAE = mean_absolute_error(X_val[:, INDEX_TO_CHECK], Y_val[:, INDEX_TO_CHECK])
+    error_SD = np.std(Y_val[:, INDEX_TO_CHECK] - X_val[:, INDEX_TO_CHECK])
+
+    ANOMALIES = np.where(abs_diff > error_SD)[0]
+    
+    with open(csv_file_path, 'a', newline='') as csvfile:
+        csv_writer = csv.writer(csvfile)
+        csv_writer.writerow([str(number_epochs),str(len(ANOMALIES)), str(val_MAE), str(val_MSE)])
+    
+
 base_path = "../numpy_saved_data/"
 model_path = "../models/autoencoderV2.h5"
 BATCH_SIZE = 128
 TEST_SIZE = 0.2
 VAL_SIZE = 0.1
-NUM_EPOCHS = 25
+NUM_EPOCHS = 20
+csv_file_path = "./autoencoder.csv"
+INDEX_VS_METRIC = ["sp02", "Pulse", "Heart Rate", "Respiration Rate", "ABP Systolic", "ABP Diasotlic", "ABP Mean"]
 
 INPUT_SHAPE = (7, 7, 1)
 INITIAL_ENCODING_DIM = 64
@@ -226,10 +263,10 @@ autoencoder, early_stopping, reduce_lr = create_model()
 autoencoder = load_model(model_path)
 
 predict_validate_metric_graph(subarrays, 0, -1)    # -1 means show all anomalies
-# labels = predict_and_save(subarrays, 0)
+labels = predict_and_save(subarrays, 0)                                                     # CHANGE THIS ONE 
 
-# encoder = create_encoder(autoencoder)
-# encode_and_save(subarrays, encoder)
+encoder = create_encoder(autoencoder)
+encode_and_save(subarrays, encoder)
 
 # spo2_data ========== 0
 # pulse_data ========= 1
