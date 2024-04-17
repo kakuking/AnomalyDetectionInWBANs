@@ -63,12 +63,16 @@ def autoencoder_training():
     mse = data['MSE']
 
     # Plotting
-    plt.plot(num_epochs, num_anomalies, label='Anomalies', marker='o', linestyle='-')
-    # plt.plot(num_epochs, mae, label='MAE', marker='o', linestyle='-')
-    # plt.plot(num_epochs, mse, label='MSE', marker='o', linestyle='-')   
-    plt.title('Number of Epochs vs Number of Anomalies')
-    plt.xlabel('Number of Epochs')
-    plt.ylabel('Number of Anomalies')
+    # plt.plot(num_epochs, num_anomalies, label='Anomalies', marker='o', linestyle='-')
+    plt.plot(num_epochs, mae, label='MAE', marker='o', linestyle='-')
+    # plt.plot(num_epochs, mse, label='MSE', marker='o', linestyle='-')
+    # plt.title('Number of Epochs vs Number of Anomalies')
+    plt.title('Number of Epochs vs MAE')
+    # plt.title('Number of Epochs vs MSE')
+    # plt.xlabel('Number of Epochs')
+    # plt.ylabel('Number of Anomalies')
+    plt.ylabel('MAE')
+    plt.ylabel('MSE')
     plt.legend(loc="upper right")
     plt.grid(True)
     plt.show()
@@ -93,8 +97,16 @@ def lstm_training():
     # plt.plot(num_epochs, recall, label='Recall', marker='o', linestyle='-')
     plt.plot(num_epochs, f1_score, label='F1 Score', marker='o', linestyle='-')
 
+    # plt.title('Number of Epochs vs Accuracy')
+    # plt.title('Number of Epochs vs Precision')
+    # plt.title('Number of Epochs vs Recall')
     plt.title('Number of Epochs vs F1 Score')
+
+    # plt.ylabel('Accuracy')
+    # plt.ylabel('Precision')
+    # plt.ylabel('Recall')
     plt.ylabel('F1 Score')
+    
     plt.xlabel('Number of Epochs')
     plt.legend(loc="upper right")
     plt.grid(True)
@@ -102,3 +114,4 @@ def lstm_training():
     
     
 lstm_training()
+# autoencoder_training()

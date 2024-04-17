@@ -156,10 +156,16 @@ def predict_validate_metric_graph(X_val, INDEX_TO_CHECK, how_many_anomalies):
     ending_index = ANOMALIES[how_many_anomalies]
     if how_many_anomalies == -1:
         ending_index = -1
+        
+    # for (idx, temp) in enumerate(ANOMALIES):
+    #     if temp > 500:
+    #         break
+    #     ending_index = idx
+        
     
     plt.plot(X_val[: ending_index, INDEX_TO_CHECK], label="Actual Values")
     plt.plot(Y_val[: ending_index, INDEX_TO_CHECK], label="Predicted Values")
-    plt.plot(ANOMALIES[:how_many_anomalies], X_val[ANOMALIES[:how_many_anomalies], INDEX_TO_CHECK], 'ro', label='Difference > Threshold')
+    plt.plot(ANOMALIES[:ending_index], X_val[ANOMALIES[:ending_index], INDEX_TO_CHECK], 'ro', label='Difference > Threshold')
 
     plt.grid()
     plt.title('For ' + INDEX_VS_METRIC[INDEX_TO_CHECK])
@@ -262,11 +268,13 @@ autoencoder, early_stopping, reduce_lr = create_model()
 # autoencoder = train_model(autoencoder, early_stopping, reduce_lr, model_path)
 autoencoder = load_model(model_path)
 
-predict_validate_metric_graph(subarrays, 0, -1)    # -1 means show all anomalies
-labels = predict_and_save(subarrays, 0)                                                     # CHANGE THIS ONE 
+# autoencoder.summary()
 
-encoder = create_encoder(autoencoder)
-encode_and_save(subarrays, encoder)
+# predict_validate_metric_graph(subarrays, 0, -1)    # -1 means show all anomalies
+# labels = predict_and_save(subarrays, 0)
+
+# encoder = create_encoder(autoencoder)
+# encode_and_save(subarrays, encoder)
 
 # spo2_data ========== 0
 # pulse_data ========= 1

@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split
 import numpy as np
 import matplotlib.pyplot as plt
 
-from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, confusion_matrix, classification_report
 import csv
 
 # Load the database and correlate it
@@ -257,6 +257,25 @@ def trainAndVsAccAndAll(model, dataset, labels, num_epochs, val_dataset, val_lab
         csv_writer = csv.writer(csvfile)
         csv_writer.writerow([str(num_epochs),str(acc), str(precision), str(recall), str(f1)])
 
+
+def class_report(model, data, y_true):
+    y_pred, _ = binary_predict(model, data)
+    
+    num_preds = len(y_pred)
+    
+    report = classification_report(y_true[:num_preds], y_pred)
+    conf_matrix = confusion_matrix(y_true[:num_preds], y_pred)
+    print(report)
+    
+    TP = conf_matrix[1, 1]
+    FP = conf_matrix[0, 1]
+    TN = conf_matrix[0, 0]
+    FN = conf_matrix[1, 0]
+
+    print(f"True Positives (TP): {TP}")
+    print(f"False Positives (FP): {FP}")
+    print(f"True Negatives (TN): {TN}")
+    print(f"False Negatives (FN): {FN}")
 '''
 #################################################################################################################################################
 '''
@@ -293,11 +312,16 @@ num_epochs = 50
 batch_size = 128
 reshaped_encoded_sequences = reshape_dataset(encoded_sequences, SEQUENCE_LENGTH)
 
+print(f"DAFAFAFAF {X_train.shape}")
 LSTM_model = create_LSTM_model(X_train.shape[1:])
 
 # LSTM_model = train_model(LSTM_model, X_train, Y_train, X_val, Y_val, num_epochs, batch_size)
 LSTM_model = load_model(model_path) 
 
-predict_and_graph(LSTM_model, reshaped_encoded_sequences, INDEX_TO_CHECK, point_labels, combined_data, anomalous_indices, contracted_anomalous_labels)
+LSTM_model.summary()
+
+# predict_and_graph(LSTM_model, reshaped_encoded_sequences, INDEX_TO_CHECK, point_labels, combined_data, anomalous_indices, contracted_anomalous_labels)
 # predict_and_metrics(LSTM_model, reshaped_encoded_sequences, sequence_labels)
 # predict_and_graph_AS(LSTM_model, reshaped_encoded_sequences, anomaly_scores, contracted_anomalous_labels)
+
+# class_report(LSTM_model, X_test, Y_test)
